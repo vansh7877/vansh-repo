@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FraudLens</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%23d03b3b'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span>FraudLens</div>
+  <nav class="tabs" id="tabs">
+    <button data-view="overview" class="active">Overview</button>
+    <button data-view="alerts">Alerts</button>
+    <button data-view="csps">CSP risk</button>
+    <button data-view="network">Network</button>
+    <button data-view="txns">Transactions</button>
+    <button data-view="ingest">Upload &amp; API</button>
+    <button data-view="rules">Rules</button>
+  </nav>
+  <div class="live" id="live" title="Live alert stream"><i></i><span>offline</span></div>
+  <button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">◐</button>
+</header>
+
+<main>
+  <!-- OVERVIEW -->
+  <section class="view active" id="view-overview">
+    <div class="grid kpis" id="kpis"></div>
+    <div class="grid two">
+      <div class="card">
+        <h3>Transactions per day</h3>
+        <div class="chart" id="chart-daily"></div>
+        <h3 class="section-gap">Alerts per day</h3>
+        <div class="chart" id="chart-alerts"></div>
+      </div>
+      <div class="card">
+        <h3>Live alerts</h3>
+        <div class="feed" id="feed"><div class="empty">Waiting for alerts…</div></div>
+      </div>
+    </div>
+    <div class="grid halves section-gap">
+      <div class="card">
+        <h3>Alerts by rule</h3>
+        <div id="by-rule"></div>
+      </div>
+      <div class="card">
+        <h3>Riskiest CSPs</h3>
+        <div id="top-csps"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALERTS -->
+  <section class="view" id="view-alerts">
+    <h2>Alerts</h2>
+    <p class="sub">Every non-tag rule hit, newest first. Click a row to open the transaction.</p>
+    <div class="toolbar">
+      <select id="al-rule"><option value="">All rules</option></select>
+      <select id="al-sev">
+        <option value="">Any severity</option>
+        <option value="medium">Medium and above</option>
+        <option value="high">High and above</option>
+      </select>
+      <input id="al-csp" placeholder="CSP id">
+      <input id="al-acct" placeholder="Account">
+      <span class="grow"></span>
+      <a class="btn" id="al-export" href="#">Export CSV</a>
+    </div>
+    <div class="table-wrap"><table id="al-table"></table></div>
+    <div class="pager" id="al-pager"></div>
+  </section>
+
+  <!-- CSPS -->
+  <section class="view" id="view-csps">
+    <h2>CSP risk</h2>
+    <p class="sub">All CSP-level rules (split, round trip, extra charges, ₹1 test deposits, relatives, ₹436, sub-KO, ₹50, attendance, volume, spike/drop, night, peer anomaly, network). Click a CSP for details.</p>
+    <div class="toolbar">
+      <input id="csp-q" placeholder="Search CSP">
+      <select id="csp-level">
+        <option value="">All risk levels</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <span class="grow"></span>
+      <a class="btn" id="csp-export" href="#">Export CSV</a>
+    </div>
+    <div class="table-wrap"><table id="csp-table"></table></div>
+  </section>
+
+  <!-- NETWORK -->
+  <section class="view" id="view-network">
+    <h2>Network &amp; fraud rings</h2>
+    <p class="sub">Money cycles across CSPs and days, hub accounts used at many CSPs, and connected groups of CSPs and accounts joined by suspicious activity.</p>
+    <div class="grid two">
+      <div class="card">
+        <div class="toolbar"><h3 style="margin:0">Ring graph</h3><span class="grow"></span><select id="ring-pick"></select></div>
+        <div class="legend"><span><i style="background:var(--series-1)"></i>CSP</span><span><i style="background:var(--series-2)"></i>Account</span><span class="muted">Line thickness = alerts / cycle legs</span></div>
+        <svg class="net-svg" id="net-svg"></svg>
+      </div>
+      <div class="card">
+        <h3>Rings</h3>
+        <div class="table-wrap"><table id="ring-table"></table></div>
+      </div>
+    </div>
+    <div class="grid halves section-gap">
+      <div class="card"><h3>Money cycles</h3><div class="table-wrap"><table id="cycle-table"></table></div></div>
+      <div class="card"><h3>Hub accounts</h3><div class="table-wrap"><table id="hub-table"></table></div></div>
+    </div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section class="view" id="view-txns">
+    <h2>Transactions</h2>
+    <p class="sub">Look up any transaction by id, or browse the cache.</p>
+    <div class="toolbar">
+      <input id="tx-id" placeholder="Transaction id">
+      <button class="btn primary" id="tx-find">Look up</button>
+      <input id="tx-csp" placeholder="CSP id">
+      <input id="tx-acct" placeholder="Account">
+      <label><input type="checkbox" id="tx-flagged" checked> Flagged only</label>
+    </div>
+    <div class="table-wrap"><table id="tx-table"></table></div>
+    <div class="pager" id="tx-pager"></div>
+  </section>
+
+  <!-- INGEST -->
+  <section class="view" id="view-ingest">
+    <h2>Upload &amp; API</h2>
+    <p class="sub">Upload a sheet (CSV, XLSX or JSON) or push transactions to the webhook. Column names are matched loosely.</p>
+    <div class="grid halves">
+      <div class="card">
+        <h3>Upload a sheet</h3>
+        <div class="drop" id="drop"><b>Drop a CSV / XLSX / JSON file here</b><br><span class="muted">or click to choose</span>
+          <input type="file" id="file" accept=".csv,.tsv,.txt,.xlsx,.json" hidden></div>
+        <div id="upload-result" class="section-gap"></div>
+      </div>
+      <div class="card">
+        <h3>Check one transaction now</h3>
+        <textarea id="tx-json"></textarea>
+        <div class="toolbar section-gap"><button class="btn primary" id="tx-send">Submit to webhook</button><span class="muted" id="tx-lat"></span></div>
+        <div id="tx-verdict"></div>
+      </div>
+    </div>
+    <div class="card section-gap">
+      <h3>Webhook</h3>
+      <p class="sub">POST one JSON object for an instant verdict, or an array / CSV body for a batch. Re-sending a known <code>txn_id</code> is idempotent.</p>
+      <pre class="code" id="curl-example"></pre>
+      <h3>Accepted columns</h3>
+      <p class="sub"><b>Required:</b> amount, csp_id. <b>Recommended:</b> txn_id, timestamp (or date + time), txn_type, from_account, to_account, ko_id, customer_charge, channel (ONUS/OFFUS), status, peer_group (region/district). Aliases such as “From Account”, “Debit A/c”, “Agent ID”, “Txn Date” work too.</p>
+      <div class="toolbar"><button class="btn danger" id="reset">Clear all data</button></div>
+    </div>
+  </section>
+
+  <!-- RULES -->
+  <section class="view" id="view-rules">
+    <h2>Rules</h2>
+    <p class="sub">Transaction rules run synchronously on every transaction; CSP rules are computed over the cache. Thresholds come from the config file.</p>
+    <div class="table-wrap"><table id="rules-table"></table></div>
+    <h3 class="section-gap">Active configuration</h3>
+    <pre class="code" id="config"></pre>
+  </section>
+</main>
+
+<div class="drawer-bg" id="drawer-bg"></div>
+<aside class="drawer" id="drawer"><button class="btn close" id="drawer-close">Close</button><div id="drawer-body"></div></aside>
+<div class="tooltip" id="tooltip"></div>
+<script src="app.js"></script>
+</body>
+</html>
